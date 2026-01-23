@@ -1,0 +1,151 @@
+{
+  "id": "83d0e0c5-0579-410e-b5b5-cb224bf8f01c",
+  "revision": 0,
+  "last_node_id": 23,
+  "last_link_id": 18,
+  "nodes": [
+    {
+      "id": 8,
+      "type": "LoadAudio",
+      "pos": [
+        3124.4561251377704,
+        -1891.138886242796
+      ],
+      "size": [
+        420.0266617523039,
+        208.52800572526303
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio",
+        "__audio_visualizer_mode": "wave"
+      },
+      "widgets_values": [
+        "1月22日.MP3",
+        null,
+        null,
+        ""
+      ]
+    },
+    {
+      "id": 13,
+      "type": "MusicPlayerWithLyricsNode",
+      "pos": [
+        3618.4557347330774,
+        -2189.0473525967586
+      ],
+      "size": [
+        409.84324683109617,
+        456
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 10
+        },
+        {
+          "name": "lyrics",
+          "shape": 7,
+          "type": "STRING",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MusicPlayerWithLyricsNode"
+      },
+      "widgets_values": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 15,
+      "type": "LyricsInputNode",
+      "pos": [
+        3118.119483896017,
+        -2191.2922332965722
+      ],
+      "size": [
+        426.81685039182776,
+        234.32556850153946
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "lyrics",
+          "type": "STRING",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LyricsInputNode"
+      },
+      "widgets_values": [
+        "[00:00.13]世界才有了色彩\n[00:02.93]你是我唯一的偏爱\n[00:05.57]是我所有原则的例外\n[00:09.27]我的心只为你一个人敞开\n[00:12.40]想为你挡下所有的伤害\n[00:16.20]我的爱不说出来只为你存在"
+      ]
+    }
+  ],
+  "links": [
+    [
+      10,
+      8,
+      0,
+      13,
+      0,
+      "AUDIO"
+    ],
+    [
+      18,
+      15,
+      0,
+      13,
+      1,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "workflowRendererVersion": "LG",
+    "ds": {
+      "scale": 0.9322496726766484,
+      "offset": [
+        -2742.8451985381757,
+        2384.9947549048466
+      ]
+    },
+    "frontendVersion": "1.36.14",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0
+  },
+  "version": 0.4
+}

@@ -1,4 +1,5 @@
 """
+yicheng/亦诚制作
 ComfyUI Music Player Node
 内嵌式音乐播放器节点 - 可接收 AUDIO 输入
 """
@@ -273,5 +274,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 }
 
 WEB_DIRECTORY = "./web"
+
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']

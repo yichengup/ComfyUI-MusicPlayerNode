@@ -1,6 +1,6 @@
 /**
  * ComfyUI Music Player Node Extension
- * 内嵌式音乐播放器节点
+ * 内嵌式音乐播放器节点 -- yicheng/亦诚制作
  */
 
 import { app } from "../../scripts/app.js";
@@ -1258,3 +1258,4 @@ app.registerExtension({
         }
     }
 });
+

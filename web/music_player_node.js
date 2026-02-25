@@ -1,6 +1,6 @@
 /**
  * ComfyUI Music Player Node Extension
- * 内嵌式音乐播放器节点 --yicheng/亦诚制作
+ * 内嵌式音乐播放器节点
  */
 
 import { app } from "../../scripts/app.js";
@@ -265,23 +265,28 @@ class NodeMusicPlayer {
     renderFullUI() {
         this.container.style.cssText = `
             width: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 12px;
-            padding: 15px;
-            color: white;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: radial-gradient(circle at center, rgba(40, 50, 70, 0.95) 0%, rgba(25, 25, 25, 0.9) 70%);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            color: #fff;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 0 60px rgba(100,150,255,0.05);
         `;
         
         // 创建 HTML 结构
         this.container.innerHTML = `
-            <!-- 显示区域 -->
+            <!-- 可视化展示区 -->
             <div class="player-display" style="
-                height: 120px;
-                background: rgba(0, 0, 0, 0.2);
-                border-radius: 8px;
-                margin-bottom: 12px;
+                height: 140px;
+                background: rgba(0, 0, 0, 0.3);
+                border-radius: 12px;
+                margin-bottom: 20px;
                 position: relative;
                 overflow: hidden;
+                border: 1px solid rgba(255,255,255,0.05);
             ">
                 <!-- 可视化画布 -->
                 <canvas class="visualizer-canvas" style="
@@ -302,116 +307,118 @@ class NodeMusicPlayer {
                     height: 100%;
                     display: none;
                     overflow-y: auto;
-                    padding: 10px;
+                    padding: 15px;
                     text-align: center;
-                    background: rgba(0, 0, 0, 0.2);
+                    background: rgba(0, 0, 0, 0.4);
                 ">
                     <div class="lyrics-content"></div>
                 </div>
             </div>
             
-            <!-- 曲目信息 -->
-            <div class="track-info" style="
-                text-align: center;
-                margin-bottom: 10px;
-            ">
-                <div class="track-title" style="
-                    font-size: 14px;
-                    font-weight: 600;
-                    margin-bottom: 4px;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                ">未加载音频</div>
+            <!-- 歌曲信息区 -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+                <div style="flex: 1; overflow: hidden; margin-right: 10px;">
+                    <div class="track-title" style="
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: #fff;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        letter-spacing: 0.5px;
+                    ">未加载音频</div>
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px;">Now Playing</div>
+                </div>
                 <div class="track-time" style="
                     font-size: 11px;
-                    opacity: 0.8;
+                    font-family: monospace;
+                    color: rgba(255,255,255,0.6);
+                    background: rgba(255,255,255,0.1);
+                    padding: 4px 10px;
+                    border-radius: 10px;
                 ">00:00 / 00:00</div>
             </div>
             
-            <!-- 进度条 -->
-            <input type="range" class="progress-bar" min="0" max="100" value="0" style="
-                width: 100%;
-                height: 4px;
-                margin-bottom: 10px;
-                border-radius: 2px;
-                background: rgba(255, 255, 255, 0.3);
-                outline: none;
-                -webkit-appearance: none;
-                cursor: pointer;
-            ">
-            
-            <!-- 控制按钮 -->
-            <div style="
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                gap: 10px;
-                margin-bottom: 10px;
-            ">
-                <button class="btn-play" style="
-                    background: rgba(255, 255, 255, 0.2);
-                    border: none;
-                    color: white;
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 50%;
-                    cursor: pointer;
-                    font-size: 16px;
-                    transition: all 0.2s;
-                ">▶</button>
-            </div>
-            
-            <!-- 音量控制 -->
-            <div style="
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 10px;
-            ">
-                <span style="font-size: 14px;">🔊</span>
-                <input type="range" class="volume-bar" min="0" max="100" value="80" style="
-                    flex: 1;
-                    height: 3px;
+            <!-- 进度条区 -->
+            <div style="position: relative; margin-bottom: 20px;">
+                <input type="range" class="progress-bar" min="0" max="100" value="0" style="
+                    width: 100%;
+                    height: 4px;
                     border-radius: 2px;
-                    background: rgba(255, 255, 255, 0.3);
+                    background: rgba(255,255,255,0.1);
                     outline: none;
                     -webkit-appearance: none;
                     cursor: pointer;
                 ">
-                <span class="volume-text" style="
-                    font-size: 10px;
-                    min-width: 30px;
-                    text-align: right;
-                ">80%</span>
             </div>
             
-            <!-- 功能按钮 -->
-            <div style="
-                display: flex;
-                justify-content: center;
-                gap: 8px;
-            ">
-                <button class="btn-visualizer" style="
-                    background: rgba(255, 255, 255, 0.3);
+            <!-- 主控制区 -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn-visualizer btn-icon-mode" title="切换可视化" style="
+                        background: rgba(255, 255, 255, 0.3);
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        color: #fff;
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 10px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: all 0.2s;
+                        font-size: 16px;
+                    ">🎨</button>
+                    <button class="btn-lyrics btn-icon-mode" title="切换歌词" style="
+                        background: rgba(255, 255, 255, 0.1);
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        color: #fff;
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 10px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: all 0.2s;
+                        font-size: 16px;
+                    ">📝</button>
+                </div>
+                
+                <button class="btn-play" style="
+                    background: #fff;
+                    color: #000;
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 50%;
                     border: none;
-                    color: white;
-                    padding: 6px 12px;
-                    border-radius: 12px;
                     cursor: pointer;
-                    font-size: 11px;
-                    transition: all 0.2s;
-                ">🎨 可视化</button>
-                <button class="btn-lyrics" style="
-                    background: rgba(255, 255, 255, 0.2);
-                    border: none;
-                    color: white;
-                    padding: 6px 12px;
-                    border-radius: 12px;
-                    cursor: pointer;
-                    font-size: 11px;
-                    transition: all 0.2s;
-                ">📝 歌词</button>
+                    font-size: 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    box-shadow: 0 4px 15px rgba(255,255,255,0.2);
+                ">▶</button>
+                
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 120px;">
+                    <span style="font-size: 12px; opacity: 0.6;">Vol</span>
+                    <input type="range" class="volume-bar" min="0" max="100" value="80" style="
+                        flex: 1;
+                        height: 3px;
+                        cursor: pointer;
+                        border-radius: 2px;
+                        background: rgba(255, 255, 255, 0.2);
+                        outline: none;
+                        -webkit-appearance: none;
+                    ">
+                    <span class="volume-text" style="
+                        font-size: 10px;
+                        min-width: 30px;
+                        text-align: right;
+                        opacity: 0.8;
+                    ">80%</span>
+                </div>
             </div>
         `;
     }
@@ -585,8 +592,16 @@ class NodeMusicPlayer {
     loadAudio(url, title = '未知曲目') {
         console.log('[NodeMusicPlayer] Loading audio:', url, title);
         
+        // 清理之前的事件监听器（如果有）
+        if (this._errorHandler) {
+            this.audio.removeEventListener('error', this._errorHandler);
+        }
+        if (this._loadedDataHandler) {
+            this.audio.removeEventListener('loadeddata', this._loadedDataHandler);
+        }
+        
         // 添加错误处理
-        this.audio.addEventListener('error', (e) => {
+        this._errorHandler = (e) => {
             console.error('[NodeMusicPlayer] ❌ 音频加载失败!');
             console.error('  错误事件:', e);
             console.error('  错误代码:', this.audio.error?.code);
@@ -595,23 +610,29 @@ class NodeMusicPlayer {
             
             // 显示错误信息
             const titleEl = this.container.querySelector('.track-title');
-            titleEl.textContent = '❌ 音频加载失败';
-            titleEl.style.color = '#ff6b6b';
-        }, { once: true });
+            if (titleEl) {
+                titleEl.textContent = '❌ 音频加载失败';
+                titleEl.style.color = '#ff6b6b';
+            }
+        };
+        this.audio.addEventListener('error', this._errorHandler, { once: true });
         
         // 添加成功加载的监听
-        this.audio.addEventListener('loadeddata', () => {
+        this._loadedDataHandler = () => {
             console.log('[NodeMusicPlayer] ✅ 音频加载成功!');
             console.log('  时长:', this.audio.duration, '秒');
             console.log('  就绪状态:', this.audio.readyState);
-        }, { once: true });
+        };
+        this.audio.addEventListener('loadeddata', this._loadedDataHandler, { once: true });
         
         this.audio.src = url;
         
         // 更新标题
         const titleEl = this.container.querySelector('.track-title');
-        titleEl.textContent = title;
-        titleEl.style.color = 'white';
+        if (titleEl) {
+            titleEl.textContent = title;
+            titleEl.style.color = 'white';
+        }
         
         // 重新调整画布尺寸
         setTimeout(() => {
@@ -664,14 +685,18 @@ class NodeMusicPlayer {
             this.analyser.fftSize = 2048;
             this.analyser.smoothingTimeConstant = 0.85;
             
-            // 创建 MediaElementSource（注意：每个 audio 元素只能创建一次）
-            // 检查是否已经为这个 audio 元素创建过 source
-            if (!this.audio._musicPlayerSource) {
+            // 为每个播放器实例创建独立的 source
+            // 使用唯一的标识符来避免多个实例之间的冲突
+            const sourceKey = `_musicPlayerSource_${this.node.id}`;
+            
+            if (!this.audio[sourceKey]) {
                 this.source = this.audioContext.createMediaElementSource(this.audio);
-                this.audio._musicPlayerSource = this.source;
+                this.audio[sourceKey] = this.source;
+                console.log('[NodeMusicPlayer] Created new MediaElementSource for node:', this.node.id);
             } else {
                 // 重用已存在的 source
-                this.source = this.audio._musicPlayerSource;
+                this.source = this.audio[sourceKey];
+                console.log('[NodeMusicPlayer] Reusing existing MediaElementSource for node:', this.node.id);
             }
             
             // 连接音频链：source → analyser → destination
@@ -679,7 +704,7 @@ class NodeMusicPlayer {
             try {
                 this.source.disconnect();
             } catch (e) {
-                // 忽略断开连接的错误
+                // 忽略断开连接的错误（首次连接时会抛出）
             }
             
             this.source.connect(this.analyser);
@@ -1235,12 +1260,14 @@ class NodeMusicPlayer {
         const lines = this.container.querySelectorAll('.lyric-line');
         
         lines.forEach((line, i) => {
+            // 移除所有active类
+            line.classList.remove('active');
+            
             if (i === index) {
+                // 使用CSS类来应用样式，利用CSS中定义的过渡效果
+                line.classList.add('active');
                 line.style.opacity = '1';
-                line.style.fontSize = '14px';
-                line.style.fontWeight = '600';
                 line.style.background = 'rgba(255, 255, 255, 0.1)';
-                line.style.color = '#ffffff';
                 // 确保滚动到视图中心
                 line.scrollIntoView({ 
                     behavior: 'smooth', 
@@ -1249,14 +1276,10 @@ class NodeMusicPlayer {
                 });
             } else if (i < index) {
                 line.style.opacity = '0.3';
-                line.style.fontSize = '12px';
-                line.style.fontWeight = 'normal';
                 line.style.background = 'transparent';
                 line.style.color = '#cccccc';
             } else {
                 line.style.opacity = '0.5';
-                line.style.fontSize = '12px';
-                line.style.fontWeight = 'normal';
                 line.style.background = 'transparent';
                 line.style.color = '#ffffff';
             }
@@ -1331,28 +1354,39 @@ class NodeMusicPlayer {
             this.ctx.fillRect(0, 0, width, height);
         }
         
-        // 根据类型设置柱子数量
-        const barCount = this.type === "compact" ? 40 : 60;
-        const barWidth = width / barCount;  
+        // 缓存计算结果以提高性能
+        if (!this._cachedDrawParams || this._cachedDrawParams.width !== width) {
+            const barCount = this.type === "compact" ? 40 : 60;
+            const barWidth = width / barCount;
+            const effectiveBufferLength = Math.floor(bufferLength * 0.65);
+            const barGap = this.type === "compact" ? 1 : 2;
+            
+            this._cachedDrawParams = {
+                width,
+                barCount,
+                barWidth,
+                effectiveBufferLength,
+                barGap
+            };
+        }
         
-        // 截取前 65% 的频率数据 (对应约 0-14kHz)
-        const effectiveBufferLength = Math.floor(bufferLength * 0.65);
+        const { barCount, barWidth, effectiveBufferLength, barGap } = this._cachedDrawParams;
 
         for (let i = 0; i < barCount; i++) {
             // 从有效频率范围内采样
             const dataIndex = Math.floor(i * effectiveBufferLength / barCount);
             const safeIndex = Math.min(dataIndex, bufferLength - 1);
             const value = dataArray[safeIndex];
-            const barHeight = (Math.min(255, value * 1) / 255) * height;
+            const barHeight = (Math.min(255, value) / 255) * height;
             
             // 根据类型设置颜色
             if (this.type === "compact") {
                 this.ctx.fillStyle = `rgba(74, 144, 226, ${value/255 + 0.2})`;
-                this.ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+                this.ctx.fillRect(i * barWidth, height - barHeight, barWidth - barGap, barHeight);
             } else {
                 const hue = (i / barCount) * 360;
                 this.ctx.fillStyle = `hsla(${hue}, 80%, 60%, 0.8)`;
-                this.ctx.fillRect(i * barWidth, height - barHeight, barWidth - 2, barHeight);
+                this.ctx.fillRect(i * barWidth, height - barHeight, barWidth - barGap, barHeight);
             }
         }
     }
@@ -1386,6 +1420,14 @@ class NodeMusicPlayer {
         const style = document.createElement('style');
         style.id = 'node-music-player-styles';
         style.textContent = `
+            /* 进度条美化 - 完整版 */
+            .node-music-player input[type="range"] {
+                background: rgba(255,255,255,0.1);
+                border-radius: 10px;
+                height: 4px;
+                -webkit-appearance: none;
+            }
+            
             .node-music-player input[type="range"]::-webkit-slider-thumb {
                 -webkit-appearance: none;
                 appearance: none;
@@ -1394,7 +1436,12 @@ class NodeMusicPlayer {
                 border-radius: 50%;
                 background: white;
                 cursor: pointer;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                box-shadow: 0 0 10px rgba(255,255,255,0.5);
+                transition: transform 0.1s;
+            }
+            
+            .node-music-player input[type="range"]::-webkit-slider-thumb:hover {
+                transform: scale(1.3);
             }
             
             .node-music-player input[type="range"]::-moz-range-thumb {
@@ -1404,7 +1451,12 @@ class NodeMusicPlayer {
                 background: white;
                 cursor: pointer;
                 border: none;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                box-shadow: 0 0 10px rgba(255,255,255,0.5);
+                transition: transform 0.1s;
+            }
+            
+            .node-music-player input[type="range"]::-moz-range-thumb:hover {
+                transform: scale(1.3);
             }
             
             /* 紧凑型进度条样式 */
@@ -1437,9 +1489,35 @@ class NodeMusicPlayer {
                 background: white;
             }
             
-            .node-music-player button:hover {
-                background: rgba(255, 255, 255, 0.3) !important;
-                transform: scale(1.05);
+            /* 功能按钮美化 */
+            .btn-icon-mode {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: #fff;
+                width: 36px;
+                height: 36px;
+                border-radius: 10px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+            }
+            
+            .btn-icon-mode:hover {
+                background: rgba(255, 255, 255, 0.2);
+                transform: translateY(-2px);
+            }
+            
+            /* 播放按钮特殊效果 */
+            .btn-play:hover {
+                transform: scale(1.1);
+                background: #fff;
+                box-shadow: 0 0 20px rgba(255,255,255,0.4);
+            }
+            
+            .btn-play:active {
+                transform: scale(0.95);
             }
             
             .node-music-player button:active {
@@ -1486,6 +1564,20 @@ class NodeMusicPlayer {
                 color: white !important;
             }
             
+            /* 歌词滚动美化 */
+            .lyric-line {
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                filter: blur(0.5px);
+            }
+            
+            .lyric-line.active {
+                color: #fff !important;
+                font-size: 16px !important;
+                font-weight: 700 !important;
+                filter: blur(0px);
+                text-shadow: 0 0 15px rgba(255,255,255,0.5);
+            }
+            
             .lyrics-container::-webkit-scrollbar {
                 width: 4px;
             }
@@ -1506,16 +1598,36 @@ class NodeMusicPlayer {
      * 销毁播放器
      */
     destroy() {
+        // 清理音频事件监听器
+        if (this._errorHandler) {
+            this.audio.removeEventListener('error', this._errorHandler);
+            this._errorHandler = null;
+        }
+        if (this._loadedDataHandler) {
+            this.audio.removeEventListener('loadeddata', this._loadedDataHandler);
+            this._loadedDataHandler = null;
+        }
+        
         if (this.audio) {
             this.audio.pause();
             this.audio.src = '';
+            
+            // 清理节点特定的 source 引用
+            const sourceKey = `_musicPlayerSource_${this.node.id}`;
+            if (this.audio[sourceKey]) {
+                delete this.audio[sourceKey];
+            }
         }
         
         this.stopVisualization();
         
         if (this.audioContext) {
             this.audioContext.close();
+            this.audioContext = null;
         }
+        
+        // 清理缓存的绘制参数
+        this._cachedDrawParams = null;
         
         // 清理弹窗
         if (this.volumePopup) {
@@ -2018,4 +2130,3 @@ app.registerExtension({
         }
     }
 });
-

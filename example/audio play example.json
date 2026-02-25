@@ -1,0 +1,215 @@
+{
+  "id": "8998a874-6296-4d66-b32c-dd7a7eac37ed",
+  "revision": 0,
+  "last_node_id": 49,
+  "last_link_id": 31,
+  "nodes": [
+    {
+      "id": 42,
+      "type": "LoadAudioWithVisualizerNode",
+      "pos": [
+        2625.955693793592,
+        363.1738163156457
+      ],
+      "size": [
+        406.8839480174711,
+        236.7011291999479
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            27
+          ]
+        },
+        {
+          "name": "filename",
+          "type": "STRING",
+          "links": [
+            28
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudioWithVisualizerNode"
+      },
+      "widgets_values": [
+        "单车.MP3",
+        "upload_audio",
+        ""
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 43,
+      "type": "MusicPlayerWithLyricsNode",
+      "pos": [
+        3096.600521204935,
+        358.4987821207622
+      ],
+      "size": [
+        599.0206193316184,
+        448.7873753198428
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 27
+        },
+        {
+          "name": "lyrics",
+          "shape": 7,
+          "type": "STRING",
+          "link": 30
+        },
+        {
+          "name": "filename",
+          "shape": 7,
+          "type": "STRING",
+          "link": 28
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            31
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MusicPlayerWithLyricsNode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 48,
+      "type": "LyricsInputNode",
+      "pos": [
+        2633.8953642094916,
+        688.1880703810776
+      ],
+      "size": [
+        391.0068239500815,
+        192.65346181837606
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "lyrics",
+          "type": "STRING",
+          "links": [
+            30
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LyricsInputNode"
+      },
+      "widgets_values": [
+        "[00:1.00]第一句歌词\n[00:3.20]第三句歌词\n[00:7.20]第四句歌词\n[00:9.20]第五句歌词"
+      ],
+      "color": "rgba(0,0,0,.8)",
+      "bgcolor": "rgba(24,24,27,.9)"
+    },
+    {
+      "id": 49,
+      "type": "SaveAudio",
+      "pos": [
+        3747.1871090585637,
+        355.83714180240105
+      ],
+      "size": [
+        270,
+        112
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 31
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveAudio"
+      },
+      "widgets_values": [
+        "audio/ComfyUI"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    }
+  ],
+  "links": [
+    [
+      27,
+      42,
+      0,
+      43,
+      0,
+      "AUDIO"
+    ],
+    [
+      28,
+      42,
+      1,
+      43,
+      2,
+      "STRING"
+    ],
+    [
+      30,
+      48,
+      0,
+      43,
+      1,
+      "STRING"
+    ],
+    [
+      31,
+      43,
+      0,
+      49,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "workflowRendererVersion": "LG",
+    "ds": {
+      "scale": 0.9552798646788945,
+      "offset": [
+        -2083.8457047271654,
+        -143.1239137162296
+      ]
+    },
+    "frontendVersion": "1.39.16",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0
+  },
+  "version": 0.4
+}

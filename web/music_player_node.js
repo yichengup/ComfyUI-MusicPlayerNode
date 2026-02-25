@@ -1,6 +1,6 @@
 /**
  * ComfyUI Music Player Node Extension
- * 内嵌式音乐播放器节点 -- yicheng/亦诚制作
+ * 内嵌式音乐播放器节点
  */
 
 import { app } from "../../scripts/app.js";
@@ -8,8 +8,9 @@ import { ComfyWidgets } from "../../scripts/widgets.js";
 
 // ==================== 节点内播放器类 ====================
 class NodeMusicPlayer {
-    constructor(node) {
+    constructor(node, type = "full") {
         this.node = node;
+        this.type = type; // "full" 为完整播放器, "compact" 为紧凑型上传预览
         this.audio = null;
         this.audioContext = null;
         this.analyser = null;
@@ -43,7 +44,225 @@ class NodeMusicPlayer {
         
         // 创建容器
         this.container = document.createElement('div');
-        this.container.className = 'node-music-player';
+        this.container.className = `node-music-player player-type-${this.type}`;
+        
+        // 根据类型渲染不同的 UI
+        if (this.type === "compact") {
+            this.renderCompactUI();
+        } else {
+            this.renderFullUI();
+        }
+        
+        // 获取元素引用
+        this.canvas = this.container.querySelector('.visualizer-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        
+        // 设置画布尺寸（延迟执行以确保 DOM 已渲染）
+        setTimeout(() => {
+            this.resizeCanvas();
+            // 绘制初始提示
+            if (this.ctx) {
+                this.drawPlaceholder();
+            }
+        }, 100);
+        
+        // 绑定事件
+        this.bindEvents();
+        
+        // 添加样式
+        this.addStyles();
+        
+        return this.container;
+    }
+    
+    /**
+     * 渲染紧凑型 UI（用于上传节点）
+     */
+    renderCompactUI() {
+        this.container.style.cssText = `
+            width: 100%;
+            background: rgba(15, 15, 15, 0.85);
+            border-radius: 10px;
+            padding: 10px;
+            color: #ececec;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        `;
+
+        this.container.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button class="btn-play" style="
+                    width: 32px; height: 32px; border-radius: 50%; border: none;
+                    background: #4a90e2; color: white; cursor: pointer; flex-shrink: 0;
+                    display: flex; align-items: center; justify-content: center; font-size: 12px;
+                    transition: all 0.2s;
+                ">▶</button>
+                <div style="flex: 1; overflow: hidden;">
+                    <div class="track-title" style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">未选择音频</div>
+                    <div class="track-time" style="font-size: 10px; opacity: 0.6;">00:00 / 00:00</div>
+                </div>
+                <button class="btn-volume" style="
+                    width: 28px; height: 28px; border-radius: 50%; border: none;
+                    background: rgba(255,255,255,0.1); color: white; cursor: pointer; flex-shrink: 0;
+                    display: flex; align-items: center; justify-content: center; font-size: 14px;
+                    transition: all 0.2s;
+                " title="音量控制">🔊</button>
+                <button class="btn-menu" style="
+                    width: 28px; height: 28px; border-radius: 50%; border: none;
+                    background: rgba(255,255,255,0.1); color: white; cursor: pointer; flex-shrink: 0;
+                    display: flex; align-items: center; justify-content: center; font-size: 14px;
+                    transition: all 0.2s; position: relative;
+                " title="更多选项">⋮</button>
+            </div>
+            
+            <div style="position: relative; height: 40px; background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden;">
+                <canvas class="visualizer-canvas" style="width: 100%; height: 100%;"></canvas>
+                <input type="range" class="progress-bar" min="0" max="100" value="0" style="
+                    position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
+                    margin: 0; -webkit-appearance: none; background: transparent; cursor: pointer; z-index: 2;
+                ">
+            </div>
+        `;
+        
+        // 创建音量弹窗（添加到 body，而不是容器内）
+        this.createVolumePopup();
+        
+        // 创建菜单弹窗（添加到 body，而不是容器内）
+        this.createMenuPopup();
+    }
+    
+    /**
+     * 创建音量弹窗
+     */
+    createVolumePopup() {
+        // 如果已存在，先移除
+        const existingPopup = document.getElementById(`volume-popup-${this.node.id}`);
+        if (existingPopup) {
+            existingPopup.remove();
+        }
+        
+        const popup = document.createElement('div');
+        popup.id = `volume-popup-${this.node.id}`;
+        popup.className = 'audio-control-popup';
+        popup.style.cssText = `
+            position: fixed;
+            display: none;
+            background: rgba(20, 20, 20, 0.95);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            z-index: 10000;
+            min-width: 200px;
+        `;
+        
+        popup.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px; color: white;">
+                <span style="font-size: 16px;">🔊</span>
+                <input type="range" class="volume-bar" min="0" max="100" value="80" style="
+                    flex: 1;
+                    height: 4px;
+                    border-radius: 2px;
+                    background: rgba(255, 255, 255, 0.3);
+                    outline: none;
+                    -webkit-appearance: none;
+                    cursor: pointer;
+                ">
+                <span class="volume-text" style="
+                    font-size: 12px;
+                    min-width: 35px;
+                    text-align: right;
+                    font-weight: 500;
+                ">80%</span>
+            </div>
+        `;
+        
+        document.body.appendChild(popup);
+        this.volumePopup = popup;
+    }
+    
+    /**
+     * 创建菜单弹窗
+     */
+    createMenuPopup() {
+        // 如果已存在，先移除
+        const existingPopup = document.getElementById(`menu-popup-${this.node.id}`);
+        if (existingPopup) {
+            existingPopup.remove();
+        }
+        
+        const popup = document.createElement('div');
+        popup.id = `menu-popup-${this.node.id}`;
+        popup.className = 'audio-control-popup';
+        popup.style.cssText = `
+            position: fixed;
+            display: none;
+            background: rgba(20, 20, 20, 0.95);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            z-index: 10000;
+            min-width: 180px;
+        `;
+        
+        popup.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 10px; color: white;">
+                <div style="display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <span style="font-size: 12px; flex: 1; font-weight: 500;">播放速度</span>
+                    <select class="playback-rate" style="
+                        background: rgba(30, 30, 30, 0.9);
+                        border: 1px solid rgba(74, 144, 226, 0.4);
+                        color: white;
+                        padding: 6px 10px;
+                        border-radius: 4px;
+                        font-size: 12px;
+                        cursor: pointer;
+                        outline: none;
+                        font-weight: 500;
+                    ">
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1.0x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2.0x</option>
+                    </select>
+                </div>
+                <button class="btn-download" style="
+                    background: rgba(74, 144, 226, 0.3);
+                    border: 1px solid rgba(74, 144, 226, 0.5);
+                    color: white;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    transition: all 0.2s;
+                    width: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                ">
+                    <span>📥</span>
+                    <span>下载音频</span>
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(popup);
+        this.menuPopup = popup;
+    }
+    
+    /**
+     * 渲染完整 UI（用于播放器节点）
+     */
+    renderFullUI() {
         this.container.style.cssText = `
             width: 100%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -195,39 +414,28 @@ class NodeMusicPlayer {
                 ">📝 歌词</button>
             </div>
         `;
-        
-        // 获取元素引用
-        this.canvas = this.container.querySelector('.visualizer-canvas');
-        this.ctx = this.canvas.getContext('2d');
-        
-        // 设置画布尺寸（延迟执行以确保 DOM 已渲染）
-        setTimeout(() => {
-            this.resizeCanvas();
-            // 绘制初始提示
-            if (this.ctx) {
-                this.drawPlaceholder();
-            }
-        }, 100);
-        
-        // 绑定事件
-        this.bindEvents();
-        
-        // 添加样式
-        this.addStyles();
-        
-        return this.container;
     }
     
     /**
      * 调整画布尺寸
      */
     resizeCanvas() {
-        const display = this.container.querySelector('.player-display');
-        if (!display) return;
+        if (!this.canvas) return;
         
-        // 强制设置画布宽度为 500px，确保填满显示区域
-        this.canvas.width = 500;
-        this.canvas.height = 120;
+        if (this.type === "compact") {
+            // 紧凑型：固定尺寸
+            const rect = this.canvas.getBoundingClientRect();
+            this.canvas.width = rect.width || 400;
+            this.canvas.height = 40;
+        } else {
+            // 完整型：原有逻辑
+            const display = this.container.querySelector('.player-display');
+            if (!display) return;
+            
+            this.canvas.width = 500;
+            this.canvas.height = 120;
+        }
+        
         console.log('[NodeMusicPlayer] Canvas resized:', this.canvas.width, 'x', this.canvas.height);
     }
     
@@ -248,20 +456,73 @@ class NodeMusicPlayer {
             }
         });
         
-        // 音量
-        const volumeBar = this.container.querySelector('.volume-bar');
-        volumeBar.addEventListener('input', (e) => {
-            const volume = e.target.value / 100;
-            this.setVolume(volume);
-        });
+        // 音量按钮（紧凑版）
+        const btnVolume = this.container.querySelector('.btn-volume');
+        if (btnVolume) {
+            btnVolume.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleVolumePopup(e);
+            });
+        }
         
-        // 可视化按钮
+        // 菜单按钮（紧凑版）
+        const btnMenu = this.container.querySelector('.btn-menu');
+        if (btnMenu) {
+            btnMenu.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleMenuPopup(e);
+            });
+        }
+        
+        // 音量条事件绑定
+        const bindVolumeBar = (volumeBar) => {
+            if (volumeBar) {
+                volumeBar.addEventListener('input', (e) => {
+                    const volume = e.target.value / 100;
+                    this.setVolume(volume);
+                });
+            }
+        };
+        
+        // 绑定紧凑版音量条
+        if (this.type === "compact" && this.volumePopup) {
+            bindVolumeBar(this.volumePopup.querySelector('.volume-bar'));
+        } else {
+            // 绑定完整版音量条
+            bindVolumeBar(this.container.querySelector('.volume-bar'));
+        }
+        
+        // 播放速度（紧凑版）
+        if (this.type === "compact" && this.menuPopup) {
+            const playbackRate = this.menuPopup.querySelector('.playback-rate');
+            if (playbackRate) {
+                playbackRate.addEventListener('change', (e) => {
+                    this.audio.playbackRate = parseFloat(e.target.value);
+                    console.log('[NodeMusicPlayer] 播放速度设置为:', e.target.value);
+                });
+            }
+            
+            // 下载按钮
+            const btnDownload = this.menuPopup.querySelector('.btn-download');
+            if (btnDownload) {
+                btnDownload.addEventListener('click', () => {
+                    this.downloadAudio();
+                    this.hideAllPopups();
+                });
+            }
+        }
+        
+        // 可视化按钮（仅完整版有）
         const btnVisualizer = this.container.querySelector('.btn-visualizer');
-        btnVisualizer.addEventListener('click', () => this.toggleVisualizer());
+        if (btnVisualizer) {
+            btnVisualizer.addEventListener('click', () => this.toggleVisualizer());
+        }
         
-        // 歌词按钮
+        // 歌词按钮（仅完整版有）
         const btnLyrics = this.container.querySelector('.btn-lyrics');
-        btnLyrics.addEventListener('click', () => this.toggleLyrics());
+        if (btnLyrics) {
+            btnLyrics.addEventListener('click', () => this.toggleLyrics());
+        }
         
         // 音频事件
         this.audio.addEventListener('loadedmetadata', () => {
@@ -273,14 +534,35 @@ class NodeMusicPlayer {
             this.state.currentTime = this.audio.currentTime;
             this.updateProgress();
             this.updateTimeDisplay();
-            this.updateLyrics();
+            if (this.type === "full") {
+                this.updateLyrics();
+            }
         });
         
         this.audio.addEventListener('play', () => {
             this.state.isPlaying = true;
             this.updatePlayButton();
+            
+            // 确保 AudioContext 已经初始化和resume
             if (this.state.showVisualizer) {
-                this.startVisualization();
+                // 如果AudioContext还没初始化，先初始化
+                if (!this.audioContext) {
+                    this.initAudioContext();
+                }
+                
+                // 确保AudioContext处于运行状态
+                if (this.audioContext && this.audioContext.state === 'suspended') {
+                    this.audioContext.resume().then(() => {
+                        console.log('[NodeMusicPlayer] AudioContext resumed on play');
+                        // Resume后立即启动可视化
+                        this.startVisualization();
+                    }).catch(err => {
+                        console.error('[NodeMusicPlayer] Failed to resume AudioContext on play:', err);
+                    });
+                } else {
+                    // AudioContext已经就绪，直接启动可视化
+                    this.startVisualization();
+                }
             }
         });
         
@@ -361,7 +643,14 @@ class NodeMusicPlayer {
      */
     initAudioContext() {
         if (this.audioContext) {
-            // 如果已经初始化过，不需要重新创建
+            // 如果已经初始化过，检查是否需要resume
+            if (this.audioContext.state === 'suspended') {
+                this.audioContext.resume().then(() => {
+                    console.log('[NodeMusicPlayer] AudioContext resumed');
+                }).catch(err => {
+                    console.error('[NodeMusicPlayer] Failed to resume AudioContext:', err);
+                });
+            }
             return;
         }
         
@@ -399,13 +688,13 @@ class NodeMusicPlayer {
             // 确保 AudioContext 处于运行状态
             if (this.audioContext.state === 'suspended') {
                 this.audioContext.resume().then(() => {
-                    console.log('[NodeMusicPlayer] AudioContext resumed');
+                    console.log('[NodeMusicPlayer] AudioContext resumed during init');
                 }).catch(err => {
-                    console.error('[NodeMusicPlayer] Failed to resume AudioContext:', err);
+                    console.error('[NodeMusicPlayer] Failed to resume AudioContext during init:', err);
                 });
             }
             
-            console.log('[NodeMusicPlayer] Web Audio API initialized');
+            console.log('[NodeMusicPlayer] Web Audio API initialized successfully');
         } catch (err) {
             console.error('[NodeMusicPlayer] Failed to initialize Web Audio API:', err);
             this.audioContext = null;
@@ -438,8 +727,30 @@ class NodeMusicPlayer {
     setVolume(volume) {
         this.state.volume = Math.max(0, Math.min(1, volume));
         this.audio.volume = this.state.volume;
-        const volumeText = this.container.querySelector('.volume-text');
-        volumeText.textContent = Math.round(this.state.volume * 100) + '%';
+        
+        // 更新所有音量显示
+        const volumeTexts = [
+            this.container.querySelector('.volume-text'),
+            this.volumePopup?.querySelector('.volume-text')
+        ];
+        
+        volumeTexts.forEach(el => {
+            if (el) {
+                el.textContent = Math.round(this.state.volume * 100) + '%';
+            }
+        });
+        
+        // 同步所有音量滑块
+        const volumeBars = [
+            this.container.querySelector('.volume-bar'),
+            this.volumePopup?.querySelector('.volume-bar')
+        ];
+        
+        volumeBars.forEach(el => {
+            if (el) {
+                el.value = Math.round(this.state.volume * 100);
+            }
+        });
     }
     
     /**
@@ -479,6 +790,110 @@ class NodeMusicPlayer {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    /**
+     * 切换音量弹窗
+     */
+    toggleVolumePopup(event) {
+        if (!this.volumePopup) return;
+        
+        const isVisible = this.volumePopup.style.display === 'block';
+        
+        // 隐藏所有弹窗
+        this.hideAllPopups();
+        
+        if (!isVisible) {
+            // 显示音量弹窗
+            this.volumePopup.style.display = 'block';
+            
+            // 定位弹窗（在按钮下方）
+            const btnRect = event.target.getBoundingClientRect();
+            this.volumePopup.style.left = `${btnRect.left - 80}px`;
+            this.volumePopup.style.top = `${btnRect.bottom + 5}px`;
+            
+            // 点击外部关闭
+            setTimeout(() => {
+                document.addEventListener('click', this.handleClickOutside.bind(this), { once: true });
+            }, 0);
+        }
+    }
+    
+    /**
+     * 切换菜单弹窗
+     */
+    toggleMenuPopup(event) {
+        if (!this.menuPopup) return;
+        
+        const isVisible = this.menuPopup.style.display === 'block';
+        
+        // 隐藏所有弹窗
+        this.hideAllPopups();
+        
+        if (!isVisible) {
+            // 显示菜单弹窗
+            this.menuPopup.style.display = 'block';
+            
+            // 定位弹窗（在按钮下方）
+            const btnRect = event.target.getBoundingClientRect();
+            this.menuPopup.style.left = `${btnRect.right - 180}px`;
+            this.menuPopup.style.top = `${btnRect.bottom + 5}px`;
+            
+            // 点击外部关闭
+            setTimeout(() => {
+                document.addEventListener('click', this.handleClickOutside.bind(this), { once: true });
+            }, 0);
+        }
+    }
+    
+    /**
+     * 隐藏所有弹窗
+     */
+    hideAllPopups() {
+        if (this.volumePopup) {
+            this.volumePopup.style.display = 'none';
+        }
+        if (this.menuPopup) {
+            this.menuPopup.style.display = 'none';
+        }
+    }
+    
+    /**
+     * 处理点击外部关闭弹窗
+     */
+    handleClickOutside(event) {
+        const isClickInsideVolume = this.volumePopup && this.volumePopup.contains(event.target);
+        const isClickInsideMenu = this.menuPopup && this.menuPopup.contains(event.target);
+        const isClickInsideContainer = this.container && this.container.contains(event.target);
+        
+        if (!isClickInsideVolume && !isClickInsideMenu && !isClickInsideContainer) {
+            this.hideAllPopups();
+        }
+    }
+    
+
+    /**
+     * 下载音频
+     */
+    downloadAudio() {
+        if (!this.audio.src) {
+            console.warn('[NodeMusicPlayer] 没有可下载的音频');
+            return;
+        }
+        
+        const titleEl = this.container.querySelector('.track-title');
+        const filename = titleEl ? titleEl.textContent : 'audio';
+        
+        // 创建一个临时的 a 标签来触发下载
+        const a = document.createElement('a');
+        a.href = this.audio.src;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        console.log('[NodeMusicPlayer] 开始下载音频:', filename);
     }
     
     /**
@@ -854,6 +1269,10 @@ class NodeMusicPlayer {
     startVisualization() {
         if (!this.analyser || !this.ctx) {
             console.warn('[NodeMusicPlayer] Cannot start visualization: analyser or ctx not ready');
+            console.warn('  analyser:', this.analyser);
+            console.warn('  ctx:', this.ctx);
+            console.warn('  audioContext:', this.audioContext);
+            console.warn('  audioContext.state:', this.audioContext?.state);
             return;
         }
         
@@ -862,6 +1281,8 @@ class NodeMusicPlayer {
         
         const bufferLength = this.analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
+        
+        console.log('[NodeMusicPlayer] Starting visualization with bufferLength:', bufferLength);
         
         const draw = () => {
             if (!this.state.showVisualizer || !this.state.isPlaying) {
@@ -903,41 +1324,36 @@ class NodeMusicPlayer {
         const { width, height } = this.canvas;
         
         // 清空画布并绘制背景
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        this.ctx.fillRect(0, 0, width, height);
+        if (this.type === "compact") {
+            this.ctx.clearRect(0, 0, width, height);
+        } else {
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            this.ctx.fillRect(0, 0, width, height);
+        }
         
-        // 保持 60 根柱子
-        const barCount = 60;  
+        // 根据类型设置柱子数量
+        const barCount = this.type === "compact" ? 40 : 60;
         const barWidth = width / barCount;  
         
-        // --- 核心修改开始 ---
-        // 不要使用整个 bufferLength (对应 0-22kHz)
-        // 截取前 65% 的频率数据 (对应约 0-14kHz)，这部分是人耳听感最明显且有数据的区域
-        // 参考代码 audio_visualizer.js 实际上只显示了前 40% (1/2.5)
+        // 截取前 65% 的频率数据 (对应约 0-14kHz)
         const effectiveBufferLength = Math.floor(bufferLength * 0.65);
-        // --- 核心修改结束 ---
 
         for (let i = 0; i < barCount; i++) {
-            // 从有效频率范围内采样，而不是整个数组
+            // 从有效频率范围内采样
             const dataIndex = Math.floor(i * effectiveBufferLength / barCount);
-            
-            // 为了防止数组越界（虽然上面的逻辑应该不会），加一个保护
             const safeIndex = Math.min(dataIndex, bufferLength - 1);
             const value = dataArray[safeIndex];
-
-            // 稍微增加一点增益，因为高频通常声音较小，如果不需要可以去掉 * 1.1
             const barHeight = (Math.min(255, value * 1) / 255) * height;
             
-            // 计算颜色（彩虹渐变）
-            const hue = (i / barCount) * 360;
-            this.ctx.fillStyle = `hsla(${hue}, 80%, 60%, 0.8)`;
-            
-            // 绘制柱状图（从底部向上）
-            const x = i * barWidth;
-            const y = height - barHeight;
-            
-            // 绘制
-            this.ctx.fillRect(x, y, barWidth - 2, barHeight);
+            // 根据类型设置颜色
+            if (this.type === "compact") {
+                this.ctx.fillStyle = `rgba(74, 144, 226, ${value/255 + 0.2})`;
+                this.ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+            } else {
+                const hue = (i / barCount) * 360;
+                this.ctx.fillStyle = `hsla(${hue}, 80%, 60%, 0.8)`;
+                this.ctx.fillRect(i * barWidth, height - barHeight, barWidth - 2, barHeight);
+            }
         }
     }
     /**
@@ -991,6 +1407,36 @@ class NodeMusicPlayer {
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             }
             
+            /* 紧凑型进度条样式 */
+            .player-type-compact input[type="range"].progress-bar::-webkit-slider-thumb {
+                width: 4px;
+                height: 40px;
+                border-radius: 0;
+                background: rgba(255,255,255,0.5);
+            }
+            
+            .player-type-compact input[type="range"].progress-bar::-moz-range-thumb {
+                width: 4px;
+                height: 40px;
+                border-radius: 0;
+                background: rgba(255,255,255,0.5);
+            }
+            
+            /* 紧凑型音量条样式 */
+            .player-type-compact .volume-bar::-webkit-slider-thumb {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: white;
+            }
+            
+            .player-type-compact .volume-bar::-moz-range-thumb {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: white;
+            }
+            
             .node-music-player button:hover {
                 background: rgba(255, 255, 255, 0.3) !important;
                 transform: scale(1.05);
@@ -998,6 +1444,46 @@ class NodeMusicPlayer {
             
             .node-music-player button:active {
                 transform: scale(0.95);
+            }
+            
+            .player-type-compact button:hover {
+                filter: brightness(1.2);
+                transform: scale(1.05);
+                transition: 0.2s;
+            }
+            
+            .player-type-compact .btn-download:hover {
+                background: rgba(74, 144, 226, 0.5) !important;
+            }
+            
+            .player-type-compact select {
+                outline: none;
+            }
+            
+            .player-type-compact select:hover {
+                background: rgba(255,255,255,0.15) !important;
+            }
+            
+            /* Select 下拉菜单选项样式 */
+            .playback-rate {
+                background: rgba(30, 30, 30, 0.9) !important;
+                color: white !important;
+            }
+            
+            .playback-rate option {
+                background: rgba(40, 40, 40, 0.95) !important;
+                color: white !important;
+                padding: 6px 8px;
+            }
+            
+            .playback-rate option:checked {
+                background: linear-gradient(rgba(74, 144, 226, 0.8), rgba(74, 144, 226, 0.8)) !important;
+                color: white !important;
+            }
+            
+            .playback-rate option:hover {
+                background: rgba(74, 144, 226, 0.6) !important;
+                color: white !important;
             }
             
             .lyrics-container::-webkit-scrollbar {
@@ -1029,6 +1515,17 @@ class NodeMusicPlayer {
         
         if (this.audioContext) {
             this.audioContext.close();
+        }
+        
+        // 清理弹窗
+        if (this.volumePopup) {
+            this.volumePopup.remove();
+            this.volumePopup = null;
+        }
+        
+        if (this.menuPopup) {
+            this.menuPopup.remove();
+            this.menuPopup = null;
         }
     }
 }
@@ -1191,7 +1688,13 @@ app.registerExtension({
                             audioUrl += `&subfolder=${encodeURIComponent(audioData.subfolder)}`;
                         }
                         
-                        const title = audioData.filename.split('/').pop();
+                        // 优先使用传入的filename参数，否则使用音频文件名
+                        let title = audioData.filename.split('/').pop();
+                        if (message.filename && Array.isArray(message.filename) && message.filename.length > 0) {
+                            title = message.filename[0];
+                        } else if (message.filename && typeof message.filename === 'string') {
+                            title = message.filename;
+                        }
                         
                         // 加载音频
                         this.musicPlayer.loadAudio(audioUrl, title);
@@ -1256,6 +1759,262 @@ app.registerExtension({
                 return originalOnRemoved?.apply?.(this, arguments);
             };
         }
+        
+        // ==================== 注册 LoadAudioWithVisualizerNode ====================
+        if (nodeData.name === "LoadAudioWithVisualizerNode") {
+            const originalOnCreated = nodeType.prototype.onNodeCreated;
+            
+            nodeType.prototype.onNodeCreated = function() {
+                const ret = originalOnCreated?.apply?.(this, arguments);
+                
+                // 添加文件上传按钮
+                this.addWidget("button", "📁 上传音频文件", "upload_audio", () => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".mp3,.wav,.ogg,.flac,.m4a,.aac,.wma,.opus";
+                    input.style.display = "none";
+                    document.body.appendChild(input);
+                    
+                    input.onchange = () => {
+                        const file = input.files[0];
+                        if (file) {
+                            // 创建 FormData 上传文件
+                            const formData = new FormData();
+                            formData.append("image", file);  // ComfyUI 使用 "image" 字段名
+                            formData.append("type", "input");
+                            formData.append("subfolder", "");
+                            
+                            fetch("/upload/image", {
+                                method: "POST",
+                                body: formData,
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.name) {
+                                    console.log(`[LoadAudioWithVisualizerNode] 文件上传成功: ${data.name}`);
+                                    
+                                    // 更新下拉菜单选项
+                                    const audioWidget = this.widgets.find(w => w.name === "audio");
+                                    if (audioWidget) {
+                                        // 刷新文件列表
+                                        this.refreshAudioFileList();
+                                        
+                                        // 设置为新上传的文件
+                                        setTimeout(() => {
+                                            audioWidget.value = data.name;
+                                            
+                                            // 立即加载音频预览（不需要执行工作流）
+                                            this.loadAudioPreview(data.name);
+                                        }, 100);
+                                    }
+                                }
+                            })
+                            .catch(error => {
+                                console.error("[LoadAudioWithVisualizerNode] 文件上传失败:", error);
+                                alert("文件上传失败，请重试");
+                            });
+                        }
+                        document.body.removeChild(input);
+                    };
+                    
+                    input.click();
+                });
+                
+                // 创建紧凑型播放器实例
+                this.audioVisualizer = new NodeMusicPlayer(this, "compact");
+                
+                // 创建播放器 UI 容器
+                const playerContainer = this.audioVisualizer.createUI();
+                
+                // 使用 addDOMWidget 添加 DOM widget
+                const widgetWrapper = {
+                    element: playerContainer,
+                    serialize: false,
+                    hideOnZoom: false
+                };
+                const playerWidget = this.addDOMWidget("audiovisualizer", "div", widgetWrapper.element, {
+                    serialize: false,
+                    hideOnZoom: false
+                });
+                
+                playerWidget.computeSize = function(width) {
+                    const height = 110; // 减小高度，因为弹窗是独立的
+                    this.computedHeight = height + 10;
+                    return [width, height];
+                };
+                
+                // 保存引用
+                this.playerWidget = playerWidget;
+                
+                // 监听音频下拉菜单的变化，自动加载预览
+                const audioWidget = this.widgets.find(w => w.name === "audio");
+                if (audioWidget) {
+                    const node = this; // 保存节点引用
+                    const originalCallback = audioWidget.callback;
+                    
+                    audioWidget.callback = function(value) {
+                        // 调用原始回调
+                        if (originalCallback) {
+                            originalCallback.call(this, value);
+                        }
+                        
+                        // 如果选择了有效的音频文件，立即加载预览
+                        if (value && value !== "请上传音频文件到input目录") {
+                            if (node && node.loadAudioPreview) {
+                                console.log('[LoadAudioWithVisualizerNode] 下拉菜单选择变化，加载预览:', value);
+                                node.loadAudioPreview(value);
+                            }
+                        }
+                    };
+                }
+                
+                console.log('[LoadAudioWithVisualizerNode] 节点创建完成');
+                return ret;
+            };
+            
+            // 添加刷新文件列表方法
+            nodeType.prototype.refreshAudioFileList = function() {
+                // 重新获取节点信息来刷新文件列表
+                fetch("/object_info")
+                    .then(response => response.json())
+                    .then(data => {
+                        const nodeInfo = data.LoadAudioWithVisualizerNode;
+                        if (nodeInfo && nodeInfo.input && nodeInfo.input.required && nodeInfo.input.required.audio) {
+                            const newFiles = nodeInfo.input.required.audio[0];
+                            const audioWidget = this.widgets.find(w => w.name === "audio");
+                            if (audioWidget) {
+                                audioWidget.options.values = newFiles;
+                                console.log('[LoadAudioWithVisualizerNode] 文件列表已刷新:', newFiles);
+                                
+                                // 触发界面更新
+                                if (this.graph && this.graph.canvas) {
+                                    this.graph.canvas.setDirty(true, true);
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('[LoadAudioWithVisualizerNode] 刷新文件列表失败:', error);
+                    });
+            };
+            
+            // 添加立即加载音频预览的方法（不需要执行工作流）
+            nodeType.prototype.loadAudioPreview = function(filename) {
+                console.log('[LoadAudioWithVisualizerNode] 立即加载音频预览:', filename);
+                
+                // 构建音频 URL
+                const audioUrl = `/view?filename=${encodeURIComponent(filename)}&type=input`;
+                const title = filename.split('/').pop();
+                
+                console.log('[LoadAudioWithVisualizerNode] 音频 URL:', audioUrl);
+                
+                // 加载音频到播放器
+                if (this.audioVisualizer) {
+                    this.audioVisualizer.loadAudio(audioUrl, title);
+                    
+                    // 获取配置参数
+                    const autoplay = this.widgets?.find(w => w.name === 'autoplay')?.value ?? true;
+                    const showVisualizer = this.widgets?.find(w => w.name === 'show_visualizer')?.value ?? true;
+                    
+                    // 设置可视化状态
+                    if (showVisualizer) {
+                        this.audioVisualizer.state.showVisualizer = true;
+                    }
+                    
+                    // 自动播放
+                    if (autoplay) {
+                        setTimeout(() => {
+                            this.audioVisualizer.audio.play().catch(err => {
+                                console.error('[LoadAudioWithVisualizerNode] 自动播放失败:', err);
+                            });
+                        }, 200);
+                    }
+                }
+            };
+            
+            // 节点执行后加载音频
+            const originalOnExecuted = nodeType.prototype.onExecuted;
+            nodeType.prototype.onExecuted = function(message) {
+                const ret = originalOnExecuted?.apply?.(this, arguments);
+                
+                console.log('[LoadAudioWithVisualizerNode] onExecuted 触发:', message);
+                
+                if (message && message.audio) {
+                    const audioData = message.audio[0];
+                    
+                    if (audioData && audioData.filename) {
+                        // 根据 type 构建正确的 URL
+                        let audioUrl;
+                        const fileType = audioData.type || 'output';
+                        audioUrl = `/view?filename=${encodeURIComponent(audioData.filename)}&type=${fileType}`;
+                        if (audioData.subfolder) {
+                            audioUrl += `&subfolder=${encodeURIComponent(audioData.subfolder)}`;
+                        }
+                        
+                        // 获取文件名（优先使用后端传来的 filename，注意它是数组）
+                        let title = audioData.filename.split('/').pop();
+                        if (message.filename && Array.isArray(message.filename) && message.filename.length > 0) {
+                            title = message.filename[0];
+                        } else if (message.filename && typeof message.filename === 'string') {
+                            title = message.filename;
+                        }
+                        
+                        console.log('[LoadAudioWithVisualizerNode] 加载音频:', audioUrl, title);
+                        
+                        // 加载音频
+                        this.audioVisualizer.loadAudio(audioUrl, title);
+                        
+                        // 获取配置参数（注意它们可能是数组）
+                        let autoplay = true;
+                        let showVisualizer = true;
+                        
+                        if (message.autoplay !== undefined) {
+                            autoplay = Array.isArray(message.autoplay) ? message.autoplay[0] : message.autoplay;
+                        } else {
+                            autoplay = this.widgets?.find(w => w.name === 'autoplay')?.value ?? true;
+                        }
+                        
+                        if (message.show_visualizer !== undefined) {
+                            showVisualizer = Array.isArray(message.show_visualizer) ? message.show_visualizer[0] : message.show_visualizer;
+                        } else {
+                            showVisualizer = this.widgets?.find(w => w.name === 'show_visualizer')?.value ?? true;
+                        }
+                        
+                        console.log('[LoadAudioWithVisualizerNode] 配置 - 自动播放:', autoplay, '显示可视化:', showVisualizer);
+                        
+                        // 设置可视化状态
+                        if (showVisualizer) {
+                            this.audioVisualizer.state.showVisualizer = true;
+                            // 确保可视化按钮状态正确
+                            const btnVisualizer = this.audioVisualizer.container.querySelector('.btn-visualizer');
+                            if (btnVisualizer) {
+                                btnVisualizer.style.background = 'rgba(255, 255, 255, 0.4)';
+                            }
+                        }
+                        
+                        // 自动播放
+                        if (autoplay) {
+                            setTimeout(() => {
+                                this.audioVisualizer.audio.play().catch(err => {
+                                    console.error('[LoadAudioWithVisualizerNode] 自动播放失败:', err);
+                                });
+                            }, 100);
+                        }
+                    }
+                }
+                
+                return ret;
+            };
+            
+            // 节点移除时清理
+            const originalOnRemoved = nodeType.prototype.onRemoved;
+            nodeType.prototype.onRemoved = function() {
+                if (this.audioVisualizer) {
+                    this.audioVisualizer.destroy();
+                }
+                
+                return originalOnRemoved?.apply?.(this, arguments);
+            };
+        }
     }
 });
-

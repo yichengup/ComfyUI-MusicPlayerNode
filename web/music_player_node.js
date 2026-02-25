@@ -1,6 +1,6 @@
 /**
  * ComfyUI Music Player Node Extension
- * 内嵌式音乐播放器节点 --yicheng/亦诚制作
+ * 内嵌式音乐播放器节点
  */
 
 import { app } from "../../scripts/app.js";
@@ -81,46 +81,49 @@ class NodeMusicPlayer {
     renderCompactUI() {
         this.container.style.cssText = `
             width: 100%;
-            background: rgba(15, 15, 15, 0.85);
+            background: radial-gradient(circle at center, rgba(35, 45, 60, 0.9) 0%, rgba(20, 20, 20, 0.85) 70%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             border-radius: 10px;
-            padding: 10px;
+            padding: 14px;
             color: #ececec;
             font-family: 'Segoe UI', system-ui, sans-serif;
             border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3), inset 0 0 40px rgba(100,150,255,0.03);
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
             position: relative;
         `;
 
         this.container.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
                 <button class="btn-play" style="
-                    width: 32px; height: 32px; border-radius: 50%; border: none;
-                    background: #4a90e2; color: white; cursor: pointer; flex-shrink: 0;
-                    display: flex; align-items: center; justify-content: center; font-size: 12px;
+                    width: 36px; height: 36px; border-radius: 50%; border: none;
+                    background: #fff; color: #000; cursor: pointer; flex-shrink: 0;
+                    display: flex; align-items: center; justify-content: center; font-size: 14px;
                     transition: all 0.2s; line-height: 1; padding: 0;
+                    box-shadow: 0 2px 8px rgba(255,255,255,0.2);
                 ">▶</button>
                 <div style="flex: 1; overflow: hidden;">
-                    <div class="track-title" style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">未选择音频</div>
-                    <div class="track-time" style="font-size: 10px; opacity: 0.6;">00:00 / 00:00</div>
+                    <div class="track-title" style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">未选择音频</div>
+                    <div class="track-time" style="font-size: 11px; opacity: 0.6; margin-top: 2px;">00:00 / 00:00</div>
                 </div>
                 <button class="btn-volume" style="
-                    width: 28px; height: 28px; border-radius: 50%; border: none;
+                    width: 32px; height: 32px; border-radius: 50%; border: none;
                     background: rgba(255,255,255,0.1); color: white; cursor: pointer; flex-shrink: 0;
-                    display: flex; align-items: center; justify-content: center; font-size: 14px;
+                    display: flex; align-items: center; justify-content: center; font-size: 16px;
                     transition: all 0.2s; line-height: 1; padding: 0;
                 " title="音量控制">🔊</button>
                 <button class="btn-menu" style="
-                    width: 28px; height: 28px; border-radius: 50%; border: none;
+                    width: 32px; height: 32px; border-radius: 50%; border: none;
                     background: rgba(255,255,255,0.1); color: white; cursor: pointer; flex-shrink: 0;
-                    display: flex; align-items: center; justify-content: center; font-size: 14px;
+                    display: flex; align-items: center; justify-content: center; font-size: 16px;
                     transition: all 0.2s; position: relative; line-height: 1; padding: 0;
                 " title="更多选项">⋮</button>
             </div>
             
-            <div style="position: relative; height: 40px; background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden;">
+            <div style="position: relative; height: 50px; background: rgba(0,0,0,0.3); border-radius: 6px; overflow: hidden;">
                 <canvas class="visualizer-canvas" style="width: 100%; height: 100%;"></canvas>
                 <input type="range" class="progress-bar" min="0" max="100" value="0" style="
                     position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
@@ -435,7 +438,7 @@ class NodeMusicPlayer {
             // 紧凑型：固定尺寸
             const rect = this.canvas.getBoundingClientRect();
             this.canvas.width = rect.width || 400;
-            this.canvas.height = 40;
+            this.canvas.height = 50;
         } else {
             // 完整型：原有逻辑
             const display = this.container.querySelector('.player-display');
@@ -1464,14 +1467,14 @@ class NodeMusicPlayer {
             /* 紧凑型进度条样式 */
             .player-type-compact input[type="range"].progress-bar::-webkit-slider-thumb {
                 width: 4px;
-                height: 40px;
+                height: 50px;
                 border-radius: 0;
                 background: rgba(255,255,255,0.5);
             }
             
             .player-type-compact input[type="range"].progress-bar::-moz-range-thumb {
                 width: 4px;
-                height: 40px;
+                height: 50px;
                 border-radius: 0;
                 background: rgba(255,255,255,0.5);
             }
@@ -1952,7 +1955,7 @@ app.registerExtension({
                 });
                 
                 playerWidget.computeSize = function(width) {
-                    const height = 110; // 减小高度，因为弹窗是独立的
+                    const height = 130;
                     this.computedHeight = height + 10;
                     return [width, height];
                 };

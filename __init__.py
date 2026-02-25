@@ -1,11 +1,12 @@
 """
-yicheng/亦诚制作
+作者: yicheng/亦诚
 ComfyUI Music Player Node
 内嵌式音乐播放器节点 - 可接收 AUDIO 输入
 """
 
 import folder_paths
 import os
+import hashlib
 from comfy_api.latest import UI
 
 
@@ -225,8 +226,11 @@ class MusicPlayerWithLyricsNode:
             },
             "optional": {
                 "lyrics": ("STRING", {"forceInput": True}),  # 可选的歌词输入
-                "autoplay": ("BOOLEAN", {"default": True}),
-                "show_visualizer": ("BOOLEAN", {"default": True}),
+                "filename": ("STRING", {"forceInput": True}),  # 可选的文件名输入
+            },
+            "hidden": {
+                "autoplay": "BOOLEAN",
+                "show_visualizer": "BOOLEAN",
             }
         }
     
@@ -236,7 +240,7 @@ class MusicPlayerWithLyricsNode:
     CATEGORY = "🎵 Music Player"
     OUTPUT_NODE = True
     
-    def play_audio_with_lyrics(self, audio, autoplay=True, show_visualizer=True, lyrics=None):
+    def play_audio_with_lyrics(self, audio, autoplay=True, show_visualizer=True, lyrics=None, filename=None):
         """
         处理音频和可选的歌词输入
         """
@@ -249,7 +253,11 @@ class MusicPlayerWithLyricsNode:
         # 如果有歌词，添加到 UI 数据中
         if lyrics is not None:
             # 关键：将 lyrics 字符串放入列表中，确保 ComfyUI 正确传输完整字符串
-            ui_data["lyrics"] = [lyrics] 
+            ui_data["lyrics"] = [lyrics]
+        
+        # 如果有文件名，添加到 UI 数据中
+        if filename is not None:
+            ui_data["filename"] = [filename]
         
         # 返回音频数据和 UI 信息
         return {
@@ -258,22 +266,163 @@ class MusicPlayerWithLyricsNode:
         }
 
 
+class LoadAudioWithVisualizerNode:
+    """
+    加载音频文件并显示可视化播放器
+    自己实现音频加载，避免与官方节点冲突
+    """
+    
+    @classmethod
+    def INPUT_TYPES(cls):
+        input_dir = folder_paths.get_input_directory()
+        files = folder_paths.filter_files_content_types(os.listdir(input_dir), ["audio", "video"])
+        
+        # 如果没有文件，提供默认选项
+        if not files:
+            files = ["请上传音频文件到input目录"]
+        
+        return {
+            "required": {
+                "audio": (sorted(files),),
+            },
+            "hidden": {
+                "autoplay": "BOOLEAN",
+                "show_visualizer": "BOOLEAN",
+            }
+        }
+    
+    RETURN_TYPES = ("AUDIO", "STRING")
+    RETURN_NAMES = ("audio", "filename")
+    FUNCTION = "load_audio"
+    CATEGORY = "🎵 Music Player"
+    OUTPUT_NODE = True
+    
+    def load_audio(self, audio, autoplay=True, show_visualizer=True):
+        """
+        加载音频文件并返回音频数据 + 文件名 + UI 信息
+        """
+        if audio == "请上传音频文件到input目录":
+            # 返回空音频和空文件名
+            import torch
+            empty_audio = {
+                "waveform": torch.zeros((1, 2, 44100)),
+                "sample_rate": 44100
+            }
+            return {"result": (empty_audio, "")}
+        
+        # 使用官方方式加载音频
+        audio_path = folder_paths.get_annotated_filepath(audio)
+        
+        try:
+            # 动态导入，避免全局污染
+            import av
+            import torch
+            import torchaudio
+            
+            # 加载音频文件
+            with av.open(audio_path) as af:
+                if not af.streams.audio:
+                    raise ValueError("No audio stream found in the file.")
+
+                stream = af.streams.audio[0]
+                sr = stream.codec_context.sample_rate
+                n_channels = stream.channels
+
+                frames = []
+                length = 0
+                for frame in af.decode(streams=stream.index):
+                    buf = torch.from_numpy(frame.to_ndarray())
+                    if buf.shape[0] != n_channels:
+                        buf = buf.view(-1, n_channels).t()
+
+                    frames.append(buf)
+                    length += buf.shape[1]
+
+                if not frames:
+                    raise ValueError("No audio frames decoded.")
+
+                wav = torch.cat(frames, dim=1)
+                
+                # 转换为 float32
+                if wav.dtype.is_floating_point:
+                    wav_float = wav
+                elif wav.dtype == torch.int16:
+                    wav_float = wav.float() / (2 ** 15)
+                elif wav.dtype == torch.int32:
+                    wav_float = wav.float() / (2 ** 31)
+                else:
+                    wav_float = wav.float()
+                
+                audio_data = {"waveform": wav_float.unsqueeze(0), "sample_rate": sr}
+            
+        except Exception as e:
+            print(f"[LoadAudioWithVisualizerNode] 音频加载失败: {str(e)}")
+            # 返回空音频作为备选
+            import torch
+            audio_data = {
+                "waveform": torch.zeros((1, 2, 44100)),
+                "sample_rate": 44100
+            }
+        
+        # 使用 PreviewAudio 保存临时文件供前端播放
+        preview_audio = UI.PreviewAudio(audio_data, cls=None)
+        ui_data = preview_audio.as_dict()
+        
+        # 获取文件名（不包含扩展名）
+        filename_with_ext = os.path.basename(audio_path)
+        filename_without_ext = os.path.splitext(filename_with_ext)[0]
+        
+        # 添加额外的 UI 配置（确保所有值都是列表）
+        ui_data["autoplay"] = [autoplay]
+        ui_data["show_visualizer"] = [show_visualizer]
+        ui_data["filename"] = [filename_without_ext]
+        
+        # 返回音频数据、文件名（不含扩展名）和 UI 信息
+        return {
+            "ui": ui_data,
+            "result": (audio_data, filename_without_ext)
+        }
+    
+    @classmethod
+    def IS_CHANGED(cls, audio, autoplay=True, show_visualizer=True):
+        """计算文件指纹用于缓存"""
+        if audio == "请上传音频文件到input目录":
+            return float("NaN")
+            
+        audio_path = folder_paths.get_annotated_filepath(audio)
+        m = hashlib.sha256()
+        with open(audio_path, 'rb') as f:
+            m.update(f.read())
+        return m.digest().hex()
+    
+    @classmethod
+    def VALIDATE_INPUTS(cls, audio, autoplay=True, show_visualizer=True):
+        """验证输入参数"""
+        if audio == "请上传音频文件到input目录":
+            return True
+            
+        if not folder_paths.exists_annotated_filepath(audio):
+            return f"Invalid audio file: {audio}"
+        return True
+
+
 # 节点注册
 NODE_CLASS_MAPPINGS = {
     "MusicPlayerWithLyricsNode": MusicPlayerWithLyricsNode,
+    "LoadAudioWithVisualizerNode": LoadAudioWithVisualizerNode,
     "LyricsInputNode": LyricsInputNode,
     "LoadLyricsFileNode": LoadLyricsFileNode,
     "SaveLyricsFileNode": SaveLyricsFileNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "MusicPlayerWithLyricsNode": "🎵 Music Player",
+    "MusicPlayerWithLyricsNode": "🎵 Music Player (YC)",
+    "LoadAudioWithVisualizerNode": "🎵 Load Audio (YC)",
     "LyricsInputNode": "📝 Lyrics Input",
     "LoadLyricsFileNode": "📂 Load Lyrics File",
     "SaveLyricsFileNode": "💾 Save Lyrics File",
 }
 
 WEB_DIRECTORY = "./web"
-
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']

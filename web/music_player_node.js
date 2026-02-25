@@ -100,7 +100,7 @@ class NodeMusicPlayer {
                     width: 32px; height: 32px; border-radius: 50%; border: none;
                     background: #4a90e2; color: white; cursor: pointer; flex-shrink: 0;
                     display: flex; align-items: center; justify-content: center; font-size: 12px;
-                    transition: all 0.2s;
+                    transition: all 0.2s; line-height: 1; padding: 0;
                 ">▶</button>
                 <div style="flex: 1; overflow: hidden;">
                     <div class="track-title" style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">未选择音频</div>
@@ -110,13 +110,13 @@ class NodeMusicPlayer {
                     width: 28px; height: 28px; border-radius: 50%; border: none;
                     background: rgba(255,255,255,0.1); color: white; cursor: pointer; flex-shrink: 0;
                     display: flex; align-items: center; justify-content: center; font-size: 14px;
-                    transition: all 0.2s;
+                    transition: all 0.2s; line-height: 1; padding: 0;
                 " title="音量控制">🔊</button>
                 <button class="btn-menu" style="
                     width: 28px; height: 28px; border-radius: 50%; border: none;
                     background: rgba(255,255,255,0.1); color: white; cursor: pointer; flex-shrink: 0;
                     display: flex; align-items: center; justify-content: center; font-size: 14px;
-                    transition: all 0.2s; position: relative;
+                    transition: all 0.2s; position: relative; line-height: 1; padding: 0;
                 " title="更多选项">⋮</button>
             </div>
             
@@ -399,6 +399,8 @@ class NodeMusicPlayer {
                     justify-content: center;
                     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                     box-shadow: 0 4px 15px rgba(255,255,255,0.2);
+                    line-height: 1;
+                    padding: 0;
                 ">▶</button>
                 
                 <div style="display: flex; align-items: center; gap: 8px; min-width: 120px;">
@@ -2130,4 +2132,3 @@ app.registerExtension({
         }
     }
 });
-

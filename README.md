@@ -12,7 +12,7 @@
 
 
 
-https://github.com/user-attachments/assets/227c7c88-3ea1-4ca2-99bc-031e1b2c55fd
+https://github.com/user-attachments/assets/3fbf6527-9e1b-45b1-bfb4-7466710a0ea9
 
 
 
@@ -119,4 +119,5 @@ LoadAudio → 🎵 Music Player
 
 
 **简单易用的音频播放和歌词管理解决方案！** 🎵
+
 
